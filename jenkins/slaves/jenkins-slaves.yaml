@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: jenkins-slaves
+metadata:
+  annotations:
+    description: jenkins-slaves
+  name: jenkins-slaves
+objects:
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: jenkins-slaves
+    labels:
+      app: cicd-pipeline
+      role: jenkins-slave
+  data:
+    maven-template: |-
+      <org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+      	<inheritFrom/>
+      	<name>maven</name>
+      	<privileged>false</privileged>
+      	<alwaysPullImage>false</alwaysPullImage>
+            <instanceCap>2147483647</instanceCap>
+      	<idleMinutes>0</idleMinutes>
+      	<label>maven</label>
+      	<serviceAccount>jenkins</serviceAccount>
+      	<nodeSelector/>
+      	<customWorkspaceVolumeEnabled>false</customWorkspaceVolumeEnabled>
+      	<workspaceVolume class="org.csanchez.jenkins.plugins.kubernetes.volumes.workspace.EmptyDirWorkspaceVolume">
+      	    <memory>false</memory>
+      	</workspaceVolume>
+      	<volumes>
+      		<org.csanchez.jenkins.plugins.kubernetes.volumes.PersistentVolumeClaim>
+      			<mountPath>/home/jenkins/.m2</mountPath>
+      			<claimName>jenkins-slave-maven-m2</claimName>
+      			<readOnly>false</readOnly>
+      		</org.csanchez.jenkins.plugins.kubernetes.volumes.PersistentVolumeClaim>
+      	</volumes>
+      	<containers>
+      		<org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+      			<name>jnlp</name>
+      			<image>registry.access.redhat.com/openshift3/jenkins-slave-maven-rhel7</image>
+      			<privileged>false</privileged>
+      			<alwaysPullImage>false</alwaysPullImage>
+      			<workingDir>/tmp</workingDir>
+      			<command/>
+      			<args>${computer.jnlpmac} ${computer.name}</args>
+      			<ttyEnabled>false</ttyEnabled>
+      			<resourceRequestCpu>500m</resourceRequestCpu>
+      			<resourceRequestMemory>1Gi</resourceRequestMemory>
+      			<resourceLimitCpu>4</resourceLimitCpu>
+      			<resourceLimitMemory>6Gi</resourceLimitMemory>
+      			<envVars>
+      				<name>CONTAINER_HEAP_PERCENT</name>
+      				<value>0.8</value>
+      			</envVars>
+      		</org.csanchez.jenkins.plugins.kubernetes.ContainerTemplate>
+      	</containers>
+      	<envVars/>
+      	<annotations/>
+      	<imagePullSecrets/>
+      </org.csanchez.jenkins.plugins.kubernetes.PodTemplate>
+
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: jenkins-slave-maven-m2
+  spec:
+    accessModes:
+    - ReadWriteMany
+    resources:
+      requests:
+        storage: ${MAVEN_VOLUME_CAPACITY}
+        
+parameters:
+- description: Maven Volume Capacity.
+  displayName: Maven Volume Capacity
+  name: MAVEN_VOLUME_CAPACITY
+  value: 20Gi
